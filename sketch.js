@@ -1,9 +1,9 @@
-/* eslint-disable no-undef, no-unused-vars */
-
 let speed, randomNum, randomColor, enemyCarColor, stripesYs, car, enemyCar;
 let shift, enemyCars, enemyCarsXs;
 
 let carsPassed, level, crushes;
+
+let startScreen, game, pause, end;
 
 function setup() {
   //setting canvas
@@ -15,7 +15,13 @@ function setup() {
   rectMode(CENTER); // x i y są centralnymi współrzędnymi, nie lewym górnym rogiem!
 
   shift = 100; // number of pixels to be shifted when car goes left/ right
+  
   speed = 1;
+  
+  startScreen = true;
+  game = false;
+  pause = false;
+  end = false;
 
   carsPassed = 0;
   level = 0;
@@ -64,8 +70,10 @@ function draw() {
     for (let i = 0; i < 10; i++) {
       fill(255, 255, 255);
       rect(50 + j * 100, stripesYs[i], 5, 25);
-      stripesYs[i] += speed;
+      if (game) {
+        stripesYs[i] += speed;
 
+      }
       if (stripesYs[i] >= 400) {
         stripesYs[i] = 0;
       }
@@ -74,7 +82,9 @@ function draw() {
 
   //adding an enemyCar to the array
   for (let i = 0; i < enemyCar.length; i++) {
-    enemyCar[i].y += speed * 4;
+    if (game) {
+      enemyCar[i].y += speed * 4;
+    }
 
     enemyCar[i].draw();
 
@@ -89,6 +99,20 @@ function draw() {
     }
   }
 
+  if (startScreen || pause) {
+    textAlign(CENTER);
+    fill("red");
+    textStyle(BOLD);
+    text(
+      "Wanna play? Press ENTER to start!",
+      canvasWidth / 2,
+      canvasHeight / 2
+    );
+    speed = 0;
+  } else {
+    speed = 1;
+  }
+  
   level = floor(carsPassed / 10);
   speed = 1 + level * 0.2;
 
@@ -98,11 +122,14 @@ function draw() {
     fill("red");
     textStyle(BOLD);
     text(
-      "You lose! Wanna play again? Refresh the browser!",
+      "You lose! Wanna play again? Press ENTER!",
       canvasWidth / 2,
       canvasHeight / 2
     );
     speed = 0;
+    end = true;
+    game = false;
+    pause = false;
   }
 }
 
@@ -115,6 +142,38 @@ keyReleased = function () {
 
   if (keyCode === RIGHT_ARROW) {
     car.right();
+  }
+  
+  if (keyCode === ENTER) {
+    if (startScreen) {
+      startScreen = false;
+      pause = false;
+      game = true;
+    } else {
+      if (pause) {
+        pause = false;
+        game = true;
+      } else {
+        if (game) {
+          game = false;
+          pause = true;
+        } else {
+          if (end) {
+            speed = 1;
+
+            game = true;
+            pause = false;
+            end = false;
+
+            carsPassed = 0;
+            level = 0;
+            crushes = 0;
+            
+            enemyCars = [];
+          }
+        }
+      }
+    }
   }
 };
 
@@ -196,8 +255,6 @@ Car.prototype.crush = function (enemyCar) {
     this.y + this.height / 2 >= enemyCar.y - enemyCar.height / 2
   ) {
     enemyCar.x = -500; //wynosimy uderzony samochód poza ekran, ale x, nie y!!!
-
-    //crushes++;
 
     let textY = this.y - 64;
 
