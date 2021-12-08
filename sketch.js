@@ -1,21 +1,32 @@
-/* eslint-disable no-undef, no-unused-vars */
-
 let speed, randomNum, randomColor, enemyCarColor, stripesYs, car, enemyCar;
 let shift, enemyCars, enemyCarsXs;
 
 let carsPassed, level, crushes;
 
+let startScreen, game, pause, end;
+
+let canvas;
+
 function setup() {
   //setting canvas
   canvasWidth = 400;
   canvasHeight = 400;
-  createCanvas(canvasWidth, canvasHeight);
+  // putting canvas into the div
+  canvas = createCanvas(canvasWidth, canvasHeight);
+  canvas.parent("canvas");
 
-  noStroke(); //bez konturów
-  rectMode(CENTER); // x i y są centralnymi współrzędnymi, nie lewym górnym rogiem!
+  noStroke();
+  rectMode(CENTER);
 
-  shift = 100; // number of pixels to be shifted when car goes left/ right
+  // number of pixels to be shifted when car goes left/ right
+  shift = 100;
+  
   speed = 1;
+  
+  startScreen = true;
+  game = false;
+  pause = false;
+  end = false;
 
   carsPassed = 0;
   level = 0;
@@ -26,17 +37,16 @@ function setup() {
   //z randomowym x oraz stałą odległością pomiędzy autami y
   enemyCar = []; //array to store enemyCars properties
 
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 200; i++) {
     //adding an enemyCar to the array
-    enemyCar.push(new EnemyCar(0 - i * 450)); //odejmujemy y-ki!!!
+    // with y & random color
+    enemyCar.push(new EnemyCar(0 - i * 450, color(random(0, 255), 0, random(0, 255))));
   }
 
-  car = new Car(); //inicjacja samochodu gracza
+  car = new Car();
 
   randomNum = floor(random(0, 3));
-  randomColor = random(0, 255);
 
-  enemyCarColor = color(randomColor, 0, randomColor);
   //tablica y-ków pasków
   stripesYs = [];
   for (var i = 0; i < 10; i++) {
@@ -45,9 +55,10 @@ function setup() {
 }
 
 function draw() {
-  background(69, 77, 102); //tło = droga
+  background(69, 77, 102);
   
   // carPassed, level & speed text style:
+  noStroke();
   textAlign(LEFT);
   fill("white");
   textStyle(NORMAL);
@@ -57,6 +68,8 @@ function draw() {
   text("Level: " + level, 325, 95);
   text("Speed: " + speed, 317, 122);
 
+  textSize(30);
+
   car.draw();
 
   //draw stripes
@@ -64,7 +77,10 @@ function draw() {
     for (let i = 0; i < 10; i++) {
       fill(255, 255, 255);
       rect(50 + j * 100, stripesYs[i], 5, 25);
-      stripesYs[i] += speed;
+
+      if (game) {
+        stripesYs[i] += speed;
+      }
 
       if (stripesYs[i] >= 400) {
         stripesYs[i] = 0;
@@ -74,7 +90,9 @@ function draw() {
 
   //adding an enemyCar to the array
   for (let i = 0; i < enemyCar.length; i++) {
-    enemyCar[i].y += speed * 4;
+    if (game) {
+      enemyCar[i].y += speed * 4;
+    }
 
     enemyCar[i].draw();
 
@@ -89,6 +107,21 @@ function draw() {
     }
   }
 
+  if (startScreen || pause) {
+    textAlign(CENTER);
+    fill("yellow");
+    stroke(1)
+    textStyle(BOLD);
+    text(
+      "Press ENTER to start!",
+      canvasWidth / 2,
+      canvasHeight / 2
+    );
+    speed = 0;
+  } else {
+    speed = 1;
+  }
+  
   level = floor(carsPassed / 10);
   speed = 1 + level * 0.2;
 
@@ -96,13 +129,22 @@ function draw() {
   if (crushes === 5) {
     textAlign(CENTER);
     fill("red");
+    stroke(1)
     textStyle(BOLD);
     text(
-      "You lose! Wanna play again? Refresh the browser!",
+      "You lose!",
       canvasWidth / 2,
-      canvasHeight / 2
+      canvasHeight / 2 - 15
+    );
+    text(
+      "Press ENTER to play again!",
+      canvasWidth / 2,
+      canvasHeight / 2 + 15
     );
     speed = 0;
+    end = true;
+    game = false;
+    pause = false;
   }
 }
 
@@ -116,14 +158,46 @@ keyReleased = function () {
   if (keyCode === RIGHT_ARROW) {
     car.right();
   }
+  
+  if (keyCode === ENTER) {
+    if (startScreen) {
+      startScreen = false;
+      pause = false;
+      game = true;
+    } else {
+      if (pause) {
+        pause = false;
+        game = true;
+      } else {
+        if (game) {
+          game = false;
+          pause = true;
+        } else {
+          if (end) {
+            speed = 1;
+
+            game = true;
+            pause = false;
+            end = false;
+
+            carsPassed = 0;
+            level = 0;
+            crushes = 0;
+            
+            enemyCars = [];
+          }
+        }
+      }
+    }
+  }
 };
 
 //--------------------------- CAR CONSTRUCTOR -------------------
 let Car = function () {
   this.x = canvasWidth / 2;
   this.y = canvasHeight - 55;
-  this.width = 50; //stała szerokość samochodu
-  this.height = 100; //stała długość samochodu
+  this.width = 50;
+  this.height = 100;
 };
 
 Car.prototype.draw = function () {
@@ -195,14 +269,14 @@ Car.prototype.crush = function (enemyCar) {
     this.y - this.height / 2 <= enemyCar.y + enemyCar.height / 2 &&
     this.y + this.height / 2 >= enemyCar.y - enemyCar.height / 2
   ) {
-    enemyCar.x = -500; //wynosimy uderzony samochód poza ekran, ale x, nie y!!!
-
-    //crushes++;
+    //wynosimy uderzony samochód poza ekran
+    enemyCar.x = -500;
+    enemyCar.y = 500;
 
     let textY = this.y - 64;
 
-    fill(255, 0, 0); // wyświetlenie napisu "CRUSH!!!" podczas zderzenia
-
+    // wyświetlenie napisu "CRUSH!!!" podczas zderzenia
+    fill(255, 0, 0);
     rect(this.x, this.y - 70, this.width * 2, this.height / 3);
     fill(255, 255, 255);
     textSize(20);
@@ -216,16 +290,17 @@ Car.prototype.crush = function (enemyCar) {
 //detekcja minięcia samochodów
 Car.prototype.passed = function (enemyCar) {
   if (enemyCar.y >= canvasHeight && enemyCar.y < canvasHeight + speed * 4) {
-    return true; //carsPassed++;
+    return true;
   }
 };
 
 //-------------------KONSTRUKTOR SAMOCHODU PRZECIWNIKA------------------
-let EnemyCar = function (y) {
+let EnemyCar = function (y, enemyCarColor) {
   this.x = canvasWidth / 2 + floor(random(-1, 2)) * 100;
   this.y = y;
   this.width = 50;
   this.height = 100;
+  this.color = enemyCarColor;
 };
 
 EnemyCar.prototype.draw = function () {
@@ -237,7 +312,7 @@ EnemyCar.prototype.draw = function () {
   rect(this.x + 25, this.y + 35, 10, 18, 20); //prawe tylne koło
 
   //karoseria
-  fill(enemyCarColor);
+  fill(this.color);
   rect(this.x, this.y, this.width, this.height, 10);
 
   //szyby
